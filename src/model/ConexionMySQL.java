@@ -5,9 +5,9 @@ import java.sql.SQLException;
 
 public class ConexionMySQL {
     private static final String CONTROLADOR = "com.mysql.jdbc.Driver";
-    private static final String URL = "jdbc:mysql://localhost:3306/bd_ventas";
+    private static final String URL = "jdbc:mysql://localhost:3306/matriculas_db?useSSL=false";
     private static final String USER = "root";
-    private static final String PWD = "";
+    private static final String PWD = "admin";
 
     static {
         try {
@@ -19,14 +19,11 @@ public class ConexionMySQL {
 
     public Connection getConectar() {
         Connection cnx = null;
-
         try {
             cnx = DriverManager.getConnection(URL, USER, PWD);
         } catch (SQLException e) {
-            System.out.println("Error en la conexión");
+            System.out.println("Error en la conexiÃ³n");
         }
-
         return cnx;
     }
 }
-
