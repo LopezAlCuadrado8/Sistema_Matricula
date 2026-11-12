@@ -1,0 +1,9 @@
+# Archivos compilados
+/build/classes/
+
+# Archivos temporales
+*.log
+*.tmp
+
+# Configuracion local del IDE
+.settings/

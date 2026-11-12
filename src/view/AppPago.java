@@ -1,6 +1,9 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
+import javax.swing.text.AbstractDocument;
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
 import com.toedter.calendar.JDateChooser;
 import model.Pago;
 
@@ -8,8 +11,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -44,6 +46,8 @@ public class AppPago extends JInternalFrame implements ActionListener {
 
     private final CRUDPago crud_pago = new CRUDPago();
     private ArrayList<String[]> arr_matricula;
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppPago() {
         super();
@@ -143,9 +147,13 @@ public class AppPago extends JInternalFrame implements ActionListener {
         this.add(btn_cerrar);
         this.add(scr_pago);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_monto.addKeyListener(ctxt);
-        txt_metodo.addKeyListener(ctxt);
+        ((AbstractDocument) txt_monto.getDocument()).setDocumentFilter(
+                new ValidationDocumentFilter("DECIMAL", 10)
+        );
+
+        ((AbstractDocument) txt_metodo.getDocument()).setDocumentFilter(
+                new ValidationDocumentFilter("LETRAS", 30)
+        );
 
         ControladorClick click = new ControladorClick();
         tb_pago.addMouseListener(click);
@@ -179,7 +187,7 @@ public class AppPago extends JInternalFrame implements ActionListener {
         };
 
         try (ResultSet rs = crud_pago.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -209,21 +217,7 @@ public class AppPago extends JInternalFrame implements ActionListener {
         }
     }
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_monto) {
-                char c = e.getKeyChar();
-                if ((!Character.isDigit(c) && c != '.') || txt_monto.getText().length() >= 10) {
-                    e.consume();
-                }
-            } else if (e.getSource() == txt_metodo && txt_metodo.getText().length() >= 30) {
-                e.consume();
-            }
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
+  
 
     private class ControladorClick extends MouseAdapter {
         @Override
@@ -256,9 +250,65 @@ public class AppPago extends JInternalFrame implements ActionListener {
             }
         }
     }
+    
+    private boolean ValidarFormulario() {
+
+        if (cbo_matricula.getSelectedIndex() <= 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione una matrícula");
+            cbo_matricula.requestFocus();
+            return false;
+        }
+
+        String textoMonto = txt_monto.getText().trim();
+
+        if (validacion.estaVacio(textoMonto)) {
+            JOptionPane.showMessageDialog(this, "Ingrese el monto");
+            txt_monto.requestFocus();
+            return false;
+        }
+
+        double monto;
+
+        try {
+            monto = Double.parseDouble(textoMonto);
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Ingrese un monto válido");
+            txt_monto.requestFocus();
+            return false;
+        }
+
+        if (monto <= 0) {
+            JOptionPane.showMessageDialog(this, "El monto debe ser mayor a cero");
+            txt_monto.requestFocus();
+            return false;
+        }
+
+        if (dc_fecha.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione la fecha de pago");
+            return false;
+        }
+
+        String metodo = txt_metodo.getText().trim();
+
+        if (validacion.estaVacio(metodo)) {
+            JOptionPane.showMessageDialog(this, "Ingrese el método de pago");
+            txt_metodo.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarLongitud(metodo, 2, 30)) {
+            JOptionPane.showMessageDialog(this,
+                    "El método de pago debe tener entre 2 y 30 caracteres");
+            txt_metodo.requestFocus();
+            return false;
+        }
+
+        return true;
+    }
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -266,72 +316,77 @@ public class AppPago extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (cbo_matricula.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione matrícula");
-                cbo_matricula.requestFocus();
-                return;
-            }
-            if (txt_monto.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese monto");
-                txt_monto.requestFocus();
-                return;
-            }
-            double monto;
-            try {
-                monto = Double.parseDouble(txt_monto.getText().trim());
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(null, "Monto debe ser numérico");
-                txt_monto.requestFocus();
-                return;
-            }
-            if (monto <= 0) {
-                JOptionPane.showMessageDialog(null, "Monto debe ser mayor a 0");
-                txt_monto.requestFocus();
-                return;
-            }
-            if (dc_fecha.getDate() == null) {
-                JOptionPane.showMessageDialog(null, "Seleccione fecha de pago");
-                return;
-            }
-            if (txt_metodo.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese método de pago");
-                txt_metodo.requestFocus();
-                return;
-            }
-
-            Pago pago = new Pago();
-            pago.setMonto(monto);
-            pago.setFecha(new java.sql.Date(dc_fecha.getDate().getTime()));
-            pago.setMetodo(txt_metodo.getText().trim());
-            pago.setIdMatricula(Integer.parseInt(arr_matricula.get(cbo_matricula.getSelectedIndex())[0]));
-
-            if (e.getSource() == btn_agregar) {
-                crud_pago.Registrar(pago);
-                JOptionPane.showMessageDialog(null, "Pago Registrado");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un pago de la tabla");
-                    return;
-                }
-                pago.setIdPago(Integer.parseInt(txt_id.getText()));
-                crud_pago.EditarPorId(pago);
-                JOptionPane.showMessageDialog(null, "Pago Actualizado");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un pago de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_pago.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Pago Eliminado");
-                }
-            }
-
-            MostrarDatos();
-            LimpiarDatos();
+            return;
         }
+
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un pago de la tabla");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
+            if (opc == JOptionPane.YES_OPTION) {
+                crud_pago.BorrarPorId(Integer.parseInt(txt_id.getText()));
+                JOptionPane.showMessageDialog(this, "Pago eliminado");
+                MostrarDatos();
+                LimpiarDatos();
+            }
+
+            return;
+        }
+
+        if (e.getSource() != btn_agregar && e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (e.getSource() == btn_editar && txt_id.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Seleccione un pago de la tabla");
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Pago pago = new Pago();
+
+        pago.setMonto(Double.parseDouble(txt_monto.getText().trim()));
+
+        pago.setFecha(new java.sql.Date(
+                dc_fecha.getDate().getTime()
+        ));
+
+        pago.setMetodo(txt_metodo.getText().trim());
+
+        pago.setIdMatricula(Integer.parseInt(
+                arr_matricula.get(cbo_matricula.getSelectedIndex())[0]
+        ));
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_pago.Registrar(pago);
+            JOptionPane.showMessageDialog(this, "Pago registrado");
+
+        } else {
+
+            pago.setIdPago(Integer.parseInt(txt_id.getText()));
+
+            crud_pago.EditarPorId(pago);
+            JOptionPane.showMessageDialog(this, "Pago actualizado");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {

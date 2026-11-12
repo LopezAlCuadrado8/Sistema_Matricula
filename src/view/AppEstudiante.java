@@ -1,15 +1,17 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import com.toedter.calendar.JDateChooser;
 import model.Estudiante;
+
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
+import javax.swing.text.AbstractDocument;
 
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -46,6 +48,8 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
     private final CRUDEstudiante crud_estudiante = new CRUDEstudiante();
     private ArrayList<String[]> arr_usuario;
     private ArrayList<String[]> arr_carrera;
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppEstudiante() {
         super();
@@ -148,8 +152,10 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
         this.add(btn_cerrar);
         this.add(scr_estudiante);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_codigo.addKeyListener(ctxt);
+     // Código: máximo 10 caracteres, solo letras y números.
+        ((AbstractDocument) txt_codigo.getDocument()).setDocumentFilter(
+            new ValidationDocumentFilter("ALFANUMERICO", 10)
+        );
 
         ControladorClick click = new ControladorClick();
         tb_estudiante.addMouseListener(click);
@@ -199,7 +205,7 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
         };
 
         try (ResultSet rs = crud_estudiante.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -227,16 +233,7 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
         }
     }
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_codigo && txt_codigo.getText().length() >= 10) {
-                e.consume();
-            }
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
+
 
     private class ControladorClick extends MouseAdapter {
         @Override
@@ -278,6 +275,7 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -285,75 +283,99 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (cbo_usuario.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione usuario");
-                cbo_usuario.requestFocus();
-                return;
-            }
-            if (txt_codigo.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese código de estudiante");
-                txt_codigo.requestFocus();
-                return;
-            }
-            if (dc_fecha.getDate() == null) {
-                JOptionPane.showMessageDialog(null, "Seleccione fecha de ingreso");
-                return;
-            }
-            if (cbo_carrera.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione carrera");
-                cbo_carrera.requestFocus();
+            return;
+        }
+
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un estudiante de la tabla.");
                 return;
             }
 
-            Estudiante estudiante = new Estudiante();
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
 
-            String nomUsu = cbo_usuario.getSelectedItem().toString();
-            for (String[] u : arr_usuario) {
-                if (u[1].equals(nomUsu)) {
-                    estudiante.setIdUsuario(Integer.parseInt(u[0]));
-                    break;
-                }
-            }
+            if (opc == JOptionPane.YES_OPTION) {
+                crud_estudiante.BorrarPorId(
+                        Integer.parseInt(txt_id.getText())
+                );
 
-            estudiante.setCodigo(txt_codigo.getText().trim());
-            Date fi = dc_fecha.getDate();
-            estudiante.setFechaIngreso(new java.sql.Date(fi.getTime()));
-
-            String nomCar = cbo_carrera.getSelectedItem().toString();
-            for (String[] c : arr_carrera) {
-                if (c[1].equals(nomCar)) {
-                    estudiante.setIdCarrera(Integer.parseInt(c[0]));
-                    break;
-                }
-            }
-
-            if (e.getSource() == btn_agregar) {
-                crud_estudiante.Registrar(estudiante);
-                JOptionPane.showMessageDialog(null, "Estudiante Registrado");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un estudiante de la tabla");
-                    return;
-                }
-                estudiante.setIdUsuario(Integer.parseInt(txt_id.getText()));
-                crud_estudiante.EditarPorId(estudiante);
-                JOptionPane.showMessageDialog(null, "Estudiante Actualizado");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un estudiante de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_estudiante.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Estudiante Eliminado");
-                }
+                JOptionPane.showMessageDialog(this,
+                        "Estudiante eliminado.");
             }
 
             MostrarDatos();
             LimpiarDatos();
+            return;
         }
+
+        if (e.getSource() != btn_agregar && e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Estudiante estudiante = new Estudiante();
+
+        String nomUsu = cbo_usuario.getSelectedItem().toString();
+
+        for (String[] u : arr_usuario) {
+            if (u[1].equals(nomUsu)) {
+                estudiante.setIdUsuario(Integer.parseInt(u[0]));
+                break;
+            }
+        }
+
+        estudiante.setCodigo(txt_codigo.getText().trim());
+
+        Date fi = dc_fecha.getDate();
+        estudiante.setFechaIngreso(
+                new java.sql.Date(fi.getTime())
+        );
+
+        String nomCar = cbo_carrera.getSelectedItem().toString();
+
+        for (String[] c : arr_carrera) {
+            if (c[1].equals(nomCar)) {
+                estudiante.setIdCarrera(Integer.parseInt(c[0]));
+                break;
+            }
+        }
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_estudiante.Registrar(estudiante);
+            JOptionPane.showMessageDialog(this,
+                    "Estudiante registrado.");
+
+        } else if (e.getSource() == btn_editar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un estudiante de la tabla.");
+                return;
+            }
+
+            estudiante.setIdUsuario(
+                    Integer.parseInt(txt_id.getText())
+            );
+
+            crud_estudiante.EditarPorId(estudiante);
+
+            JOptionPane.showMessageDialog(this,
+                    "Estudiante actualizado.");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {
@@ -367,6 +389,42 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
         // SE RESTABLECE ESTADO INICIAL DE BOTONES
         HabilitarBotones(true, true, false, false);
         txt_codigo.requestFocus();
+    }
+    
+    private boolean ValidarFormulario() {
+
+        String codigo = txt_codigo.getText().trim();
+
+        if (cbo_usuario.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un usuario.");
+            cbo_usuario.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(codigo)) {
+            JOptionPane.showMessageDialog(this, "Ingrese el código del estudiante.");
+            txt_codigo.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarLongitud(codigo, 1, 10)) {
+            JOptionPane.showMessageDialog(this, "El código debe tener máximo 10 caracteres.");
+            txt_codigo.requestFocus();
+            return false;
+        }
+
+        if (dc_fecha.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione la fecha de ingreso.");
+            return false;
+        }
+
+        if (cbo_carrera.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione una carrera.");
+            cbo_carrera.requestFocus();
+            return false;
+        }
+
+        return true;
     }
 
     public static AppEstudiante getInstancia() {

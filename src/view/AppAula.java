@@ -1,14 +1,15 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import model.Aula;
 
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
+import javax.swing.text.AbstractDocument;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -38,6 +39,8 @@ public class AppAula extends JInternalFrame implements ActionListener {
     private JScrollPane scr_aula;
 
     private final CRUDAula crud_aula = new CRUDAula();
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppAula() {
         super();
@@ -118,13 +121,14 @@ public class AppAula extends JInternalFrame implements ActionListener {
         this.add(btn_cerrar);
         this.add(scr_aula);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_nombre.addKeyListener(ctxt);
-        txt_capacidad.addKeyListener(ctxt);
+		((AbstractDocument) txt_nombre.getDocument())
+				.setDocumentFilter(new ValidationDocumentFilter("ALFANUMERICO", 30));
 
-        ControladorClick click = new ControladorClick();
-        tb_aula.addMouseListener(click);
-    }
+		((AbstractDocument) txt_capacidad.getDocument()).setDocumentFilter(new ValidationDocumentFilter("NUMEROS", 3));
+
+		ControladorClick click = new ControladorClick();
+		tb_aula.addMouseListener(click);
+	}
 
     // SE AGREGA MÉTODO PARA CONTROLAR ESTADO DE BOTONES
     private void HabilitarBotones(boolean nuevo, boolean agregar, boolean editar, boolean borrar) {
@@ -134,53 +138,43 @@ public class AppAula extends JInternalFrame implements ActionListener {
         btn_borrar.setEnabled(borrar);
     }
 
-    private void MostrarDatos() {
-        DefaultTableModel modelo = new DefaultTableModel() {
-            @Override
-            public boolean isCellEditable(int row, int column) { return false; }
-        };
+	private void MostrarDatos() {
+		DefaultTableModel modelo = new DefaultTableModel() {
+			@Override
+			public boolean isCellEditable(int row, int column) {
+				return false;
+			}
+		};
 
-        try (ResultSet rs = crud_aula.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
-            int nc = meta.getColumnCount();
-            for (int i = 1; i <= nc; i++)
-                modelo.addColumn(meta.getColumnLabel(i));
-            while (rs.next()) {
-                Object[] arr_fila = new Object[nc];
-                for (int i = 0; i < nc; i++)
-                    arr_fila[i] = rs.getObject(i + 1);
-                modelo.addRow(arr_fila);
-            }
-        } catch (SQLException e) {
-            System.err.println("Error para cargar aulas: " + e.getMessage());
-        }
+		try (ResultSet rs = crud_aula.getListar()) {
+			ResultSetMetaData meta = rs.getMetaData();
+			int nc = meta.getColumnCount();
+			for (int i = 1; i <= nc; i++)
+				modelo.addColumn(meta.getColumnLabel(i));
+			while (rs.next()) {
+				Object[] arr_fila = new Object[nc];
+				for (int i = 0; i < nc; i++)
+					arr_fila[i] = rs.getObject(i + 1);
+				modelo.addRow(arr_fila);
+			}
+		} catch (SQLException e) {
+			System.err.println("Error para cargar aulas: " + e.getMessage());
+		}
 
-        tb_aula.setModel(modelo);
-        tb_aula.setRowHeight(22);
+		tb_aula.setModel(modelo);
+		tb_aula.setRowHeight(22);
 
-        DefaultTableCellRenderer centro = new DefaultTableCellRenderer();
-        centro.setHorizontalAlignment(SwingConstants.CENTER);
-        TableColumnModel columnas = tb_aula.getColumnModel();
-        if (columnas.getColumnCount() >= 3) {
-            columnas.getColumn(0).setPreferredWidth(40);
-            columnas.getColumn(0).setCellRenderer(centro);
-            columnas.getColumn(2).setCellRenderer(centro);
-        }
-    }
+		DefaultTableCellRenderer centro = new DefaultTableCellRenderer();
+		centro.setHorizontalAlignment(SwingConstants.CENTER);
+		TableColumnModel columnas = tb_aula.getColumnModel();
+		if (columnas.getColumnCount() >= 3) {
+			columnas.getColumn(0).setPreferredWidth(40);
+			columnas.getColumn(0).setCellRenderer(centro);
+			columnas.getColumn(2).setCellRenderer(centro);
+		}
+	}
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_nombre && txt_nombre.getText().length() >= 30) {
-                e.consume();
-            } else if (e.getSource() == txt_capacidad) {
-                char c = e.getKeyChar();
-                if (!Character.isDigit(c) || txt_capacidad.getText().length() >= 3) e.consume();
-            }
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
+    
 
     private class ControladorClick extends MouseAdapter {
         @Override
@@ -204,8 +198,48 @@ public class AppAula extends JInternalFrame implements ActionListener {
         }
     }
 
+    private boolean ValidarFormulario() {
+
+        String nombre = txt_nombre.getText().trim();
+        String capacidad = txt_capacidad.getText().trim();
+
+        if (validacion.estaVacio(nombre)) {
+            JOptionPane.showMessageDialog(this,
+                    "Ingrese el nombre del aula.");
+            txt_nombre.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarLongitud(nombre, 1, 30)) {
+            JOptionPane.showMessageDialog(this,
+                    "El nombre debe tener máximo 30 caracteres.");
+            txt_nombre.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(capacidad)) {
+            JOptionPane.showMessageDialog(this,
+                    "Ingrese la capacidad del aula.");
+            txt_capacidad.requestFocus();
+            return false;
+        }
+
+        int cap = Integer.parseInt(capacidad);
+
+        if (cap <= 0) {
+            JOptionPane.showMessageDialog(this,
+                    "La capacidad debe ser mayor a 0.");
+            txt_capacidad.requestFocus();
+            return false;
+        }
+
+        return true;
+    }
+    
+    
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -213,61 +247,80 @@ public class AppAula extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (txt_nombre.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese nombre del aula");
-                txt_nombre.requestFocus();
-                return;
-            }
-            if (txt_capacidad.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese capacidad");
-                txt_capacidad.requestFocus();
-                return;
-            }
-            int cap;
-            try {
-                cap = Integer.parseInt(txt_capacidad.getText().trim());
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(null, "Capacidad debe ser numérica");
-                txt_capacidad.requestFocus();
-                return;
-            }
-            if (cap <= 0) {
-                JOptionPane.showMessageDialog(null, "Capacidad debe ser mayor a 0");
-                txt_capacidad.requestFocus();
-                return;
-            }
-
-            Aula aula = new Aula();
-            aula.setNombre(txt_nombre.getText().trim());
-            aula.setCapacidad(cap);
-
-            if (e.getSource() == btn_agregar) {
-                crud_aula.Registrar(aula);
-                JOptionPane.showMessageDialog(null, "Aula Registrada");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un aula de la tabla");
-                    return;
-                }
-                aula.setIdAula(Integer.parseInt(txt_id.getText()));
-                crud_aula.EditarPorId(aula);
-                JOptionPane.showMessageDialog(null, "Aula Actualizada");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un aula de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_aula.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Aula Eliminada");
-                }
-            }
-
-            MostrarDatos();
-            LimpiarDatos();
+            return;
         }
+
+        // ELIMINAR
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un aula de la tabla.");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
+            if (opc == JOptionPane.YES_OPTION) {
+
+                crud_aula.BorrarPorId(
+                        Integer.parseInt(txt_id.getText())
+                );
+
+                JOptionPane.showMessageDialog(this, "Aula eliminada.");
+
+                MostrarDatos();
+                LimpiarDatos();
+            }
+
+            return;
+        }
+
+        // SOLO AGREGAR O EDITAR
+        if (e.getSource() != btn_agregar &&
+            e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Aula aula = new Aula();
+
+        aula.setNombre(txt_nombre.getText().trim());
+        aula.setCapacidad(
+                Integer.parseInt(txt_capacidad.getText().trim())
+        );
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_aula.Registrar(aula);
+
+            JOptionPane.showMessageDialog(this, "Aula registrada.");
+
+        } else if (e.getSource() == btn_editar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un aula de la tabla.");
+                return;
+            }
+
+            aula.setIdAula(Integer.parseInt(txt_id.getText()));
+
+            crud_aula.EditarPorId(aula);
+
+            JOptionPane.showMessageDialog(this, "Aula actualizada.");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {

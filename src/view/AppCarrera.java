@@ -1,14 +1,16 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import model.Carrera;
 
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
+import javax.swing.text.AbstractDocument;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -38,6 +40,8 @@ public class AppCarrera extends JInternalFrame implements ActionListener {
     private JScrollPane scr_carrera;
 
     private final CRUDCarrera crud_carrera = new CRUDCarrera();
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppCarrera() {
         super();
@@ -118,9 +122,13 @@ public class AppCarrera extends JInternalFrame implements ActionListener {
         this.add(btn_cerrar);
         this.add(scr_carrera);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_nombre.addKeyListener(ctxt);
-        txt_duracion.addKeyListener(ctxt);
+        ((AbstractDocument) txt_nombre.getDocument()).setDocumentFilter(
+        	    new ValidationDocumentFilter("ALFANUMERICO", 60)
+        	);
+
+        	((AbstractDocument) txt_duracion.getDocument()).setDocumentFilter(
+        	    new ValidationDocumentFilter("NUMEROS", 2)
+        	);
 
         ControladorClick click = new ControladorClick();
         tb_carrera.addMouseListener(click);
@@ -141,7 +149,7 @@ public class AppCarrera extends JInternalFrame implements ActionListener {
         };
 
         try (ResultSet rs = crud_carrera.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -168,19 +176,7 @@ public class AppCarrera extends JInternalFrame implements ActionListener {
         }
     }
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_nombre && txt_nombre.getText().length() == 60) {
-                e.consume();
-            } else if (e.getSource() == txt_duracion) {
-                char c = e.getKeyChar();
-                if (!Character.isDigit(c) || txt_duracion.getText().length() >= 2) e.consume();
-            }
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
+    
 
     private class ControladorClick extends MouseAdapter {
         @Override
@@ -203,9 +199,48 @@ public class AppCarrera extends JInternalFrame implements ActionListener {
             }
         }
     }
+    
+    private boolean ValidarFormulario() {
+
+        String nombre = txt_nombre.getText().trim();
+        String duracion = txt_duracion.getText().trim();
+
+        if (validacion.estaVacio(nombre)) {
+            JOptionPane.showMessageDialog(this,
+                    "Ingrese el nombre de la carrera.");
+            txt_nombre.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarLongitud(nombre, 1, 60)) {
+            JOptionPane.showMessageDialog(this,
+                    "El nombre debe tener máximo 60 caracteres.");
+            txt_nombre.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(duracion)) {
+            JOptionPane.showMessageDialog(this,
+                    "Ingrese la duración en ciclos.");
+            txt_duracion.requestFocus();
+            return false;
+        }
+
+        int dur = Integer.parseInt(duracion);
+
+        if (dur < 1 || dur > 12) {
+            JOptionPane.showMessageDialog(this,
+                    "La duración debe estar entre 1 y 12 ciclos.");
+            txt_duracion.requestFocus();
+            return false;
+        }
+
+        return true;
+    }
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -213,64 +248,86 @@ public class AppCarrera extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (txt_nombre.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese nombre de la carrera");
-                txt_nombre.requestFocus();
-                return;
-            }
-
-            if (txt_duracion.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese duración en ciclos");
-                txt_duracion.requestFocus();
-                return;
-            }
-
-            int dur;
-            try {
-                dur = Integer.parseInt(txt_duracion.getText().trim());
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(null, "Duración debe ser numérica");
-                txt_duracion.requestFocus();
-                return;
-            }
-
-            if (dur < 1 || dur > 12) {
-                JOptionPane.showMessageDialog(null, "Duración debe estar entre 1 y 12 ciclos");
-                txt_duracion.requestFocus();
-                return;
-            }
-
-            Carrera carrera = new Carrera();
-            carrera.setNombre(txt_nombre.getText().trim());
-            carrera.setDuracionCiclos(dur);
-
-            if (e.getSource() == btn_agregar) {
-                crud_carrera.Registrar(carrera);
-                JOptionPane.showMessageDialog(null, "Carrera Registrada");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione una carrera de la tabla");
-                    return;
-                }
-                carrera.setIdCarrera(Integer.parseInt(txt_id.getText()));
-                crud_carrera.EditarPorId(carrera);
-                JOptionPane.showMessageDialog(null, "Carrera Actualizada");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione una carrera de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_carrera.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Carrera Eliminada");
-                }
-            }
-
-            MostrarDatos();
-            LimpiarDatos();
+            return;
         }
+
+        // ELIMINAR
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione una carrera de la tabla.");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
+            if (opc == JOptionPane.YES_OPTION) {
+
+                crud_carrera.BorrarPorId(
+                        Integer.parseInt(txt_id.getText())
+                );
+
+                JOptionPane.showMessageDialog(this,
+                        "Carrera eliminada.");
+
+                MostrarDatos();
+                LimpiarDatos();
+            }
+
+            return;
+        }
+
+        // SOLO AGREGAR O EDITAR
+        if (e.getSource() != btn_agregar &&
+            e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Carrera carrera = new Carrera();
+
+        carrera.setNombre(txt_nombre.getText().trim());
+
+        carrera.setDuracionCiclos(
+                Integer.parseInt(txt_duracion.getText().trim())
+        );
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_carrera.Registrar(carrera);
+
+            JOptionPane.showMessageDialog(this,
+                    "Carrera registrada.");
+
+        } else if (e.getSource() == btn_editar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione una carrera de la tabla.");
+                return;
+            }
+
+            carrera.setIdCarrera(
+                    Integer.parseInt(txt_id.getText())
+            );
+
+            crud_carrera.EditarPorId(carrera);
+
+            JOptionPane.showMessageDialog(this,
+                    "Carrera actualizada.");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {

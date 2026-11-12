@@ -7,7 +7,7 @@ public class ConexionMySQL {
     private static final String CONTROLADOR = "com.mysql.jdbc.Driver";
     private static final String URL = "jdbc:mysql://localhost:3306/matriculas_db?useSSL=false";
     private static final String USER = "root";
-    private static final String PWD = "admin";
+    private static final String PWD = "mysql";
 
     static {
         try {

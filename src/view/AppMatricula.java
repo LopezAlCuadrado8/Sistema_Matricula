@@ -1,6 +1,6 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import com.toedter.calendar.JDateChooser;
 import model.Matricula;
 
@@ -192,7 +192,7 @@ public class AppMatricula extends JInternalFrame implements ActionListener {
         };
 
         try (ResultSet rs = crud_matricula.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -256,9 +256,33 @@ public class AppMatricula extends JInternalFrame implements ActionListener {
             }
         }
     }
+    
+    private boolean ValidarFormulario() {
+
+        if (cbo_estudiante.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un estudiante");
+            cbo_estudiante.requestFocus();
+            return false;
+        }
+
+        if (cbo_bloque.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un bloque");
+            cbo_bloque.requestFocus();
+            return false;
+        }
+
+        if (dc_fecha.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione la fecha de matrícula");
+            dc_fecha.requestFocus();
+            return false;
+        }
+
+        return true;
+    }
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -269,71 +293,123 @@ public class AppMatricula extends JInternalFrame implements ActionListener {
             return;
         }
 
-        if (txt_id.getText().isEmpty() && (e.getSource() == btn_editar || e.getSource() == btn_borrar || e.getSource() == btn_anular)) {
-            JOptionPane.showMessageDialog(null, "Seleccione una matrícula de la tabla");
-            return;
-        }
-
+        // ANULAR MATRÍCULA
         if (e.getSource() == btn_anular) {
-            int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de anular la matrícula?", "SENATI", JOptionPane.YES_NO_OPTION);
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione una matrícula de la tabla");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de anular la matrícula?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
             if (opc == JOptionPane.YES_OPTION) {
-                crud_matricula.Anular(Integer.parseInt(txt_id.getText()));
-                JOptionPane.showMessageDialog(null, "Matrícula Anulada");
+
+                crud_matricula.Anular(
+                        Integer.parseInt(txt_id.getText())
+                );
+
+                JOptionPane.showMessageDialog(this, "Matrícula anulada");
+
                 MostrarDatos();
                 LimpiarDatos();
             }
+
             return;
         }
 
-        if (cbo_estudiante.getSelectedIndex() == 0) {
-            JOptionPane.showMessageDialog(null, "Seleccione estudiante");
-            cbo_estudiante.requestFocus();
+        // BORRAR MATRÍCULA
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione una matrícula de la tabla");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
+            if (opc == JOptionPane.YES_OPTION) {
+
+                crud_matricula.BorrarPorId(
+                        Integer.parseInt(txt_id.getText())
+                );
+
+                JOptionPane.showMessageDialog(this, "Matrícula eliminada");
+
+                MostrarDatos();
+                LimpiarDatos();
+            }
+
             return;
         }
-        if (cbo_bloque.getSelectedIndex() == 0) {
-            JOptionPane.showMessageDialog(null, "Seleccione bloque");
-            cbo_bloque.requestFocus();
+
+        // SOLO CONTINUAR SI ES AGREGAR O EDITAR
+        if (e.getSource() != btn_agregar &&
+                e.getSource() != btn_editar) {
             return;
         }
-        if (dc_fecha.getDate() == null) {
-            JOptionPane.showMessageDialog(null, "Seleccione fecha de matrícula");
+
+        if (e.getSource() == btn_editar && txt_id.getText().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Seleccione una matrícula de la tabla");
+            return;
+        }
+
+        if (!ValidarFormulario()) {
             return;
         }
 
         Matricula matricula = new Matricula();
-        matricula.setFecha(new java.sql.Date(dc_fecha.getDate().getTime()));
 
-        String nomEst = cbo_estudiante.getSelectedItem().toString();
-        for (String[] u : arr_estudiante) {
-            if (u[1].equals(nomEst)) {
-                matricula.setIdEstudiante(Integer.parseInt(u[0]));
-                break;
-            }
-        }
+        matricula.setFecha(
+                new java.sql.Date(dc_fecha.getDate().getTime())
+        );
 
-        String nomBlo = cbo_bloque.getSelectedItem().toString();
-        for (String[] b : arr_bloque) {
-            if (b[1].equals(nomBlo)) {
-                matricula.setIdBloque(Integer.parseInt(b[0]));
-                break;
-            }
-        }
+        // Obtener ID del estudiante seleccionado
+        String[] estudiante =
+                arr_estudiante.get(cbo_estudiante.getSelectedIndex());
+
+        matricula.setIdEstudiante(
+                Integer.parseInt(estudiante[0])
+        );
+
+        // Obtener ID del bloque seleccionado
+        String[] bloque =
+                arr_bloque.get(cbo_bloque.getSelectedIndex());
+
+        matricula.setIdBloque(
+                Integer.parseInt(bloque[0])
+        );
 
         matricula.setEstado(1);
 
         if (e.getSource() == btn_agregar) {
+
             crud_matricula.Registrar(matricula);
-            JOptionPane.showMessageDialog(null, "Matrícula Registrada");
+
+            JOptionPane.showMessageDialog(this, "Matrícula registrada");
+
         } else if (e.getSource() == btn_editar) {
-            matricula.setIdMatricula(Integer.parseInt(txt_id.getText()));
+
+            matricula.setIdMatricula(
+                    Integer.parseInt(txt_id.getText())
+            );
+
             crud_matricula.EditarPorId(matricula);
-            JOptionPane.showMessageDialog(null, "Matrícula Actualizada");
-        } else if (e.getSource() == btn_borrar) {
-            int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-            if (opc == JOptionPane.YES_OPTION) {
-                crud_matricula.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                JOptionPane.showMessageDialog(null, "Matrícula Eliminada");
-            }
+
+            JOptionPane.showMessageDialog(this, "Matrícula actualizada");
         }
 
         MostrarDatos();

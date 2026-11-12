@@ -2,13 +2,14 @@ package view;
 
 import com.mysql.jdbc.ResultSetMetaData;
 import model.Usuario;
-
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
+import javax.swing.text.AbstractDocument;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -36,6 +37,8 @@ public class AppUsuario extends JInternalFrame implements ActionListener {
     private JButton btn_nuevo, btn_agregar, btn_editar, btn_borrar, btn_cerrar;
     private JTable tb_usuario;
     private JScrollPane scr_usuario;
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     private final CRUDUsuario crud_usuario = new CRUDUsuario();
 
@@ -132,11 +135,25 @@ public class AppUsuario extends JInternalFrame implements ActionListener {
         this.add(btn_cerrar);
         this.add(scr_usuario);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_dni.addKeyListener(ctxt);
-        txt_nombres.addKeyListener(ctxt);
-        txt_apellidos.addKeyListener(ctxt);
-        txt_correo.addKeyListener(ctxt);
+     // DNI: solamente números, máximo 8
+        ((AbstractDocument) txt_dni.getDocument()).setDocumentFilter(
+            new ValidationDocumentFilter("NUMEROS", 8)
+        );
+
+        // Nombres: letras y espacios, máximo 50
+        ((AbstractDocument) txt_nombres.getDocument()).setDocumentFilter(
+            new ValidationDocumentFilter("LETRAS", 50)
+        );
+
+        // Apellidos: letras y espacios, máximo 50
+        ((AbstractDocument) txt_apellidos.getDocument()).setDocumentFilter(
+            new ValidationDocumentFilter("LETRAS", 50)
+        );
+
+        // Correo: máximo 60 caracteres
+        ((AbstractDocument) txt_correo.getDocument()).setDocumentFilter(
+            new ValidationDocumentFilter("CORREO", 60)
+        );
 
         ControladorClick click = new ControladorClick();
         tb_usuario.addMouseListener(click);
@@ -184,23 +201,6 @@ public class AppUsuario extends JInternalFrame implements ActionListener {
         }
     }
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_dni) {
-                char c = e.getKeyChar();
-                if (!Character.isDigit(c) || txt_dni.getText().length() >= 8) e.consume();
-            } else if (e.getSource() == txt_nombres && txt_nombres.getText().length() >= 50) {
-                e.consume();
-            } else if (e.getSource() == txt_apellidos && txt_apellidos.getText().length() >= 50) {
-                e.consume();
-            } else if (e.getSource() == txt_correo && txt_correo.getText().length() >= 60) {
-                e.consume();
-            }
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
 
     private class ControladorClick extends MouseAdapter {
         @Override
@@ -228,6 +228,7 @@ public class AppUsuario extends JInternalFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -235,66 +236,81 @@ public class AppUsuario extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (txt_dni.getText().trim().isEmpty() || txt_dni.getText().length() != 8) {
-                JOptionPane.showMessageDialog(null, "DNI debe tener 8 dígitos");
-                txt_dni.requestFocus();
-                return;
-            }
-            if (txt_nombres.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese nombres");
-                txt_nombres.requestFocus();
-                return;
-            }
-            if (txt_apellidos.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese apellidos");
-                txt_apellidos.requestFocus();
-                return;
-            }
-            if (txt_correo.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese correo");
-                txt_correo.requestFocus();
-                return;
-            }
-            String correo = txt_correo.getText().trim();
-            if (!correo.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$")) {
-                JOptionPane.showMessageDialog(null, "Formato de correo inválido");
-                txt_correo.requestFocus();
+            return;
+        }
+
+        // Solo validar cuando se agrega o edita
+        if (e.getSource() != btn_agregar
+                && e.getSource() != btn_editar
+                && e.getSource() != btn_borrar) {
+            return;
+        }
+
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(
+                    this,
+                    "Seleccione un usuario de la tabla."
+                );
                 return;
             }
 
-            Usuario usuario = new Usuario();
-            usuario.setDNI(txt_dni.getText().trim());
-            usuario.setNombres(txt_nombres.getText().trim());
-            usuario.setApellidos(txt_apellidos.getText().trim());
-            usuario.setCorreo(correo);
+            int opc = JOptionPane.showConfirmDialog(
+                this,
+                "¿Seguro de borrar el registro?",
+                "SENATI",
+                JOptionPane.YES_NO_OPTION
+            );
 
-            if (e.getSource() == btn_agregar) {
-                crud_usuario.Registrar(usuario);
-                JOptionPane.showMessageDialog(null, "Usuario Registrado");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un usuario de la tabla");
-                    return;
-                }
-                usuario.setIdUsuario(Integer.parseInt(txt_id.getText()));
-                crud_usuario.EditarPorId(usuario);
-                JOptionPane.showMessageDialog(null, "Usuario Actualizado");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un usuario de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_usuario.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Usuario Eliminado");
-                }
+            if (opc == JOptionPane.YES_OPTION) {
+                crud_usuario.BorrarPorId(
+                    Integer.parseInt(txt_id.getText())
+                );
+
+                JOptionPane.showMessageDialog(this, "Usuario eliminado.");
             }
 
             MostrarDatos();
             LimpiarDatos();
+            return;
         }
+
+        // Validar datos antes de registrar o editar
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Usuario usuario = new Usuario();
+
+        usuario.setDNI(txt_dni.getText().trim());
+        usuario.setNombres(txt_nombres.getText().trim());
+        usuario.setApellidos(txt_apellidos.getText().trim());
+        usuario.setCorreo(txt_correo.getText().trim());
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_usuario.Registrar(usuario);
+            JOptionPane.showMessageDialog(this, "Usuario registrado.");
+
+        } else if (e.getSource() == btn_editar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(
+                    this,
+                    "Seleccione un usuario de la tabla."
+                );
+                return;
+            }
+
+            usuario.setIdUsuario(Integer.parseInt(txt_id.getText()));
+
+            crud_usuario.EditarPorId(usuario);
+            JOptionPane.showMessageDialog(this, "Usuario actualizado.");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {
@@ -307,6 +323,64 @@ public class AppUsuario extends JInternalFrame implements ActionListener {
         // SE RESTABLECE ESTADO INICIAL DE BOTONES
         HabilitarBotones(true, true, false, false);
         txt_dni.requestFocus();
+    }
+    
+    private boolean ValidarFormulario() {
+
+        String dni = txt_dni.getText().trim();
+        String nombres = txt_nombres.getText().trim();
+        String apellidos = txt_apellidos.getText().trim();
+        String correo = txt_correo.getText().trim();
+
+        if (validacion.estaVacio(dni)) {
+            JOptionPane.showMessageDialog(this, "Ingrese el DNI.");
+            txt_dni.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarDNI(dni)) {
+            JOptionPane.showMessageDialog(this, "El DNI debe tener 8 dígitos.");
+            txt_dni.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(nombres)) {
+            JOptionPane.showMessageDialog(this, "Ingrese los nombres.");
+            txt_nombres.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarNombre(nombres)) {
+            JOptionPane.showMessageDialog(this, "Los nombres contienen caracteres inválidos.");
+            txt_nombres.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(apellidos)) {
+            JOptionPane.showMessageDialog(this, "Ingrese los apellidos.");
+            txt_apellidos.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarNombre(apellidos)) {
+            JOptionPane.showMessageDialog(this, "Los apellidos contienen caracteres inválidos.");
+            txt_apellidos.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(correo)) {
+            JOptionPane.showMessageDialog(this, "Ingrese el correo.");
+            txt_correo.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarCorreo(correo)) {
+            JOptionPane.showMessageDialog(this, "Formato de correo inválido.");
+            txt_correo.requestFocus();
+            return false;
+        }
+
+        return true;
     }
 
     public static AppUsuario getInstancia() {

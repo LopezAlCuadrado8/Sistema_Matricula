@@ -1,5 +1,5 @@
 package view;
-
+import model.UsuarioLogin;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -40,12 +40,21 @@ public class AppMenu extends JFrame implements ActionListener {
 
     private JMenuItem mi_salir;
     private JSeparator msp_1, msp_2, msp_3;
+    
+    private final UsuarioLogin usuario;
 
-    public AppMenu() {
+    public AppMenu(UsuarioLogin usuario) {
         super();
+
+        this.usuario = usuario;
 
         ConfigurarFormulario();
         ConfigurarControles();
+
+        this.setTitle(
+            "SENATI - SISTEMA DE MATRÍCULAS | Usuario: "
+            + usuario.getNombres()
+        );
     }
 
     private void ConfigurarFormulario() {
@@ -180,7 +189,11 @@ public class AppMenu extends JFrame implements ActionListener {
     }
 
     public static void main(String[] args) {
-        AppMenu app_menu = new AppMenu();
-        app_menu.setVisible(true);
+
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            LoginView login = new LoginView();
+            login.setVisible(true);
+        });
+
     }
 }

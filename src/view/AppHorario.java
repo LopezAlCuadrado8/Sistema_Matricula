@@ -1,8 +1,9 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import model.Horario;
 
+import controller.ValidacionController;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -43,6 +44,8 @@ public class AppHorario extends JInternalFrame implements ActionListener {
     private ArrayList<String[]> arr_curso;
     private ArrayList<String[]> arr_docente;
     private ArrayList<String[]> arr_aula;
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppHorario() {
         super();
@@ -222,7 +225,7 @@ public class AppHorario extends JInternalFrame implements ActionListener {
         };
 
         try (ResultSet rs = crud_horario.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -294,9 +297,68 @@ public class AppHorario extends JInternalFrame implements ActionListener {
             }
         }
     }
+    
+    private boolean ValidarFormulario() {
+
+        if (cbo_dia.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un día");
+            cbo_dia.requestFocus();
+            return false;
+        }
+
+        String hi = txt_hora_inicio.getText().trim();
+        String hf = txt_hora_fin.getText().trim();
+
+        String formatoHora = "^([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$";
+
+        if (!hi.matches(formatoHora)) {
+            JOptionPane.showMessageDialog(this,
+                    "Hora de inicio inválida. Use HH:MM:SS");
+            txt_hora_inicio.requestFocus();
+            return false;
+        }
+
+        if (!hf.matches(formatoHora)) {
+            JOptionPane.showMessageDialog(this,
+                    "Hora de fin inválida. Use HH:MM:SS");
+            txt_hora_fin.requestFocus();
+            return false;
+        }
+
+        Time horaInicio = Time.valueOf(hi);
+        Time horaFin = Time.valueOf(hf);
+
+        if (!horaInicio.before(horaFin)) {
+            JOptionPane.showMessageDialog(this,
+                    "La hora de inicio debe ser menor que la hora de fin");
+            txt_hora_inicio.requestFocus();
+            return false;
+        }
+
+        if (cbo_curso.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un curso");
+            cbo_curso.requestFocus();
+            return false;
+        }
+
+        if (cbo_docente.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un docente");
+            cbo_docente.requestFocus();
+            return false;
+        }
+
+        if (cbo_aula.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un aula");
+            cbo_aula.requestFocus();
+            return false;
+        }
+
+        return true;
+    }
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -304,84 +366,91 @@ public class AppHorario extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (cbo_dia.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione día");
-                cbo_dia.requestFocus();
-                return;
-            }
-
-            String hi = txt_hora_inicio.getText().trim();
-            String hf = txt_hora_fin.getText().trim();
-            if (!hi.matches("^([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$")) {
-                JOptionPane.showMessageDialog(null, "Hora inicio inválida (HH:MM:SS)");
-                txt_hora_inicio.requestFocus();
-                return;
-            }
-            if (!hf.matches("^([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$")) {
-                JOptionPane.showMessageDialog(null, "Hora fin inválida (HH:MM:SS)");
-                txt_hora_fin.requestFocus();
-                return;
-            }
-
-            Time tHi = Time.valueOf(hi);
-            Time tHf = Time.valueOf(hf);
-
-            if (!tHi.before(tHf)) {
-                JOptionPane.showMessageDialog(null, "Hora inicio debe ser menor que hora fin");
-                return;
-            }
-
-            if (cbo_curso.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione curso");
-                cbo_curso.requestFocus();
-                return;
-            }
-            if (cbo_docente.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione docente");
-                cbo_docente.requestFocus();
-                return;
-            }
-            if (cbo_aula.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione aula");
-                cbo_aula.requestFocus();
-                return;
-            }
-
-            Horario horario = new Horario();
-            horario.setDia(cbo_dia.getSelectedItem().toString());
-            horario.setHoraInicio(tHi);
-            horario.setHoraFin(tHf);
-            horario.setIdCurso(Integer.parseInt(arr_curso.get(cbo_curso.getSelectedIndex())[0]));
-            horario.setIdDocente(Integer.parseInt(arr_docente.get(cbo_docente.getSelectedIndex())[0]));
-            horario.setIdAula(Integer.parseInt(arr_aula.get(cbo_aula.getSelectedIndex())[0]));
-
-            if (e.getSource() == btn_agregar) {
-                crud_horario.Registrar(horario);
-                JOptionPane.showMessageDialog(null, "Horario Registrado");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un horario de la tabla");
-                    return;
-                }
-                horario.setIdHorario(Integer.parseInt(txt_id.getText()));
-                crud_horario.EditarPorId(horario);
-                JOptionPane.showMessageDialog(null, "Horario Actualizado");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un horario de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_horario.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Horario Eliminado");
-                }
-            }
-
-            MostrarDatos();
-            LimpiarDatos();
+            return;
         }
+
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un horario de la tabla");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
+            if (opc == JOptionPane.YES_OPTION) {
+                crud_horario.BorrarPorId(
+                        Integer.parseInt(txt_id.getText())
+                );
+
+                JOptionPane.showMessageDialog(this, "Horario eliminado");
+
+                MostrarDatos();
+                LimpiarDatos();
+            }
+
+            return;
+        }
+
+        if (e.getSource() != btn_agregar &&
+                e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Time tHi = Time.valueOf(txt_hora_inicio.getText().trim());
+        Time tHf = Time.valueOf(txt_hora_fin.getText().trim());
+
+        Horario horario = new Horario();
+
+        horario.setDia(cbo_dia.getSelectedItem().toString());
+        horario.setHoraInicio(tHi);
+        horario.setHoraFin(tHf);
+
+        horario.setIdCurso(Integer.parseInt(
+                arr_curso.get(cbo_curso.getSelectedIndex())[0]
+        ));
+
+        horario.setIdDocente(Integer.parseInt(
+                arr_docente.get(cbo_docente.getSelectedIndex())[0]
+        ));
+
+        horario.setIdAula(Integer.parseInt(
+                arr_aula.get(cbo_aula.getSelectedIndex())[0]
+        ));
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_horario.Registrar(horario);
+
+            JOptionPane.showMessageDialog(this, "Horario registrado");
+
+        } else if (e.getSource() == btn_editar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un horario de la tabla");
+                return;
+            }
+
+            horario.setIdHorario(Integer.parseInt(txt_id.getText()));
+
+            crud_horario.EditarPorId(horario);
+
+            JOptionPane.showMessageDialog(this, "Horario actualizado");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {

@@ -1,14 +1,16 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import model.DetalleMatricula;
 
+import javax.swing.text.AbstractDocument;
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -43,6 +45,8 @@ public class AppDetalleMatricula extends JInternalFrame implements ActionListene
     private final CRUDDetalleMatricula crud_detalle = new CRUDDetalleMatricula();
     private ArrayList<String[]> arr_matricula;
     private ArrayList<String[]> arr_curso;
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppDetalleMatricula() {
         super();
@@ -148,8 +152,9 @@ public class AppDetalleMatricula extends JInternalFrame implements ActionListene
         this.add(btn_cerrar);
         this.add(scr_detalle);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_nota.addKeyListener(ctxt);
+        ((AbstractDocument) txt_nota.getDocument()).setDocumentFilter(
+                new ValidationDocumentFilter("DECIMAL", 5)
+        );
 
         ControladorClick click = new ControladorClick();
         tb_detalle.addMouseListener(click);
@@ -197,7 +202,7 @@ public class AppDetalleMatricula extends JInternalFrame implements ActionListene
         };
 
         try (ResultSet rs = crud_detalle.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -225,20 +230,7 @@ public class AppDetalleMatricula extends JInternalFrame implements ActionListene
         }
     }
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_nota) {
-                char c = e.getKeyChar();
-                if ((!Character.isDigit(c) && c != '.') || txt_nota.getText().length() >= 5) {
-                    e.consume();
-                }
-            }
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
-
+    
     private class ControladorClick extends MouseAdapter {
         @Override
         public void mouseClicked(MouseEvent e) {
@@ -278,9 +270,50 @@ public class AppDetalleMatricula extends JInternalFrame implements ActionListene
             }
         }
     }
+    
+    private boolean ValidarFormulario() {
+
+        if (cbo_matricula.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione una matrícula");
+            cbo_matricula.requestFocus();
+            return false;
+        }
+
+        if (cbo_curso.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un curso");
+            cbo_curso.requestFocus();
+            return false;
+        }
+
+        String textoNota = txt_nota.getText().trim();
+
+        // La nota es opcional
+        if (!validacion.estaVacio(textoNota)) {
+
+            try {
+                double nota = Double.parseDouble(textoNota);
+
+                if (nota < 0 || nota > 20) {
+                    JOptionPane.showMessageDialog(this,
+                            "La nota debe estar entre 0 y 20");
+                    txt_nota.requestFocus();
+                    return false;
+                }
+
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Ingrese una nota numérica válida");
+                txt_nota.requestFocus();
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -291,70 +324,133 @@ public class AppDetalleMatricula extends JInternalFrame implements ActionListene
             return;
         }
 
-        if (cbo_matricula.getSelectedIndex() == 0) {
-            JOptionPane.showMessageDialog(null, "Seleccione matrícula");
-            cbo_matricula.requestFocus();
-            return;
-        }
-        if (cbo_curso.getSelectedIndex() == 0) {
-            JOptionPane.showMessageDialog(null, "Seleccione curso");
-            cbo_curso.requestFocus();
-            return;
-        }
-
-        String idMat = arr_matricula.get(cbo_matricula.getSelectedIndex())[0];
-        String idCur = arr_curso.get(cbo_curso.getSelectedIndex())[0];
-
+        // RETIRAR CURSO
         if (e.getSource() == btn_retirar) {
-            int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de retirar el curso?", "SENATI", JOptionPane.YES_NO_OPTION);
+
+            if (!btn_retirar.isEnabled()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un detalle de matrícula");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de retirar el curso?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
             if (opc == JOptionPane.YES_OPTION) {
-                crud_detalle.Retirar(Integer.parseInt(idMat), Integer.parseInt(idCur));
-                JOptionPane.showMessageDialog(null, "Curso Retirado");
+
+                String idMat = arr_matricula.get(
+                        cbo_matricula.getSelectedIndex()
+                )[0];
+
+                String idCur = arr_curso.get(
+                        cbo_curso.getSelectedIndex()
+                )[0];
+
+                crud_detalle.Retirar(
+                        Integer.parseInt(idMat),
+                        Integer.parseInt(idCur)
+                );
+
+                JOptionPane.showMessageDialog(this, "Curso retirado");
+
                 MostrarDatos();
                 LimpiarDatos();
             }
+
             return;
         }
 
+        // BORRAR DETALLE
         if (e.getSource() == btn_borrar) {
-            int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
+
+            if (!btn_borrar.isEnabled()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un detalle de matrícula");
+                return;
+            }
+
+            String idMat = arr_matricula.get(
+                    cbo_matricula.getSelectedIndex()
+            )[0];
+
+            String idCur = arr_curso.get(
+                    cbo_curso.getSelectedIndex()
+            )[0];
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
             if (opc == JOptionPane.YES_OPTION) {
+
                 crud_detalle.Borrar(idMat + "|" + idCur);
-                JOptionPane.showMessageDialog(null, "Detalle Eliminado");
+
+                JOptionPane.showMessageDialog(this, "Detalle eliminado");
+
                 MostrarDatos();
                 LimpiarDatos();
             }
+
             return;
         }
+
+        // SOLO AGREGAR O EDITAR
+        if (e.getSource() != btn_agregar &&
+                e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (e.getSource() == btn_editar && !btn_editar.isEnabled()) {
+            JOptionPane.showMessageDialog(this,
+                    "Seleccione un detalle de matrícula");
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        String idMat = arr_matricula.get(
+                cbo_matricula.getSelectedIndex()
+        )[0];
+
+        String idCur = arr_curso.get(
+                cbo_curso.getSelectedIndex()
+        )[0];
 
         Double nota = null;
-        if (!txt_nota.getText().trim().isEmpty()) {
-            try {
-                nota = Double.parseDouble(txt_nota.getText().trim());
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(null, "Nota debe ser numérica");
-                txt_nota.requestFocus();
-                return;
-            }
-            if (nota < 0 || nota > 20) {
-                JOptionPane.showMessageDialog(null, "Nota debe estar entre 0 y 20");
-                txt_nota.requestFocus();
-                return;
-            }
+
+        if (!validacion.estaVacio(txt_nota.getText())) {
+            nota = Double.parseDouble(txt_nota.getText().trim());
         }
 
         DetalleMatricula detalle = new DetalleMatricula();
+
         detalle.setIdMatricula(Integer.parseInt(idMat));
         detalle.setIdCurso(Integer.parseInt(idCur));
         detalle.setNota(nota);
         detalle.setEstado(Integer.parseInt(txt_estado.getText()));
 
         if (e.getSource() == btn_agregar) {
+
             crud_detalle.Registrar(detalle);
-            JOptionPane.showMessageDialog(null, "Curso Agregado a la Matrícula");
+
+            JOptionPane.showMessageDialog(this,
+                    "Curso agregado a la matrícula");
+
         } else if (e.getSource() == btn_editar) {
+
             crud_detalle.EditarPorId(detalle);
-            JOptionPane.showMessageDialog(null, "Detalle Actualizado");
+
+            JOptionPane.showMessageDialog(this,
+                    "Detalle actualizado");
         }
 
         MostrarDatos();

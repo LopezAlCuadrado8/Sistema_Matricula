@@ -1,14 +1,16 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import model.Curso;
 
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
+import javax.swing.text.AbstractDocument;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -42,6 +44,8 @@ public class AppCurso extends JInternalFrame implements ActionListener {
 
     private final CRUDCurso crud_curso = new CRUDCurso();
     private ArrayList<String[]> arr_carrera;
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppCurso() {
         super();
@@ -141,10 +145,17 @@ public class AppCurso extends JInternalFrame implements ActionListener {
         this.add(btn_cerrar);
         this.add(scr_curso);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_nombre.addKeyListener(ctxt);
-        txt_creditos.addKeyListener(ctxt);
-        txt_horas.addKeyListener(ctxt);
+        ((AbstractDocument) txt_nombre.getDocument()).setDocumentFilter(
+        	    new ValidationDocumentFilter("ALFANUMERICO", 60)
+        	);
+
+        	((AbstractDocument) txt_creditos.getDocument()).setDocumentFilter(
+        	    new ValidationDocumentFilter("NUMEROS", 2)
+        	);
+
+        	((AbstractDocument) txt_horas.getDocument()).setDocumentFilter(
+        	    new ValidationDocumentFilter("NUMEROS", 3)
+        	);
 
         ControladorClick click = new ControladorClick();
         tb_curso.addMouseListener(click);
@@ -178,7 +189,7 @@ public class AppCurso extends JInternalFrame implements ActionListener {
         };
 
         try (ResultSet rs = crud_curso.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -206,22 +217,7 @@ public class AppCurso extends JInternalFrame implements ActionListener {
         }
     }
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_nombre && txt_nombre.getText().length() == 60) {
-                e.consume();
-            } else if (e.getSource() == txt_creditos) {
-                char c = e.getKeyChar();
-                if (!Character.isDigit(c) || txt_creditos.getText().length() >= 2) e.consume();
-            } else if (e.getSource() == txt_horas) {
-                char c = e.getKeyChar();
-                if (!Character.isDigit(c) || txt_horas.getText().length() >= 3) e.consume();
-            }
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
+
 
     private class ControladorClick extends MouseAdapter {
         @Override
@@ -253,9 +249,68 @@ public class AppCurso extends JInternalFrame implements ActionListener {
             }
         }
     }
+    
+    private boolean ValidarFormulario() {
+
+        String nombre = txt_nombre.getText().trim();
+        String creditos = txt_creditos.getText().trim();
+        String horas = txt_horas.getText().trim();
+
+        if (validacion.estaVacio(nombre)) {
+            JOptionPane.showMessageDialog(this, "Ingrese el nombre del curso.");
+            txt_nombre.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarLongitud(nombre, 1, 60)) {
+            JOptionPane.showMessageDialog(this,
+                    "El nombre debe tener máximo 60 caracteres.");
+            txt_nombre.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(creditos)) {
+            JOptionPane.showMessageDialog(this, "Ingrese los créditos.");
+            txt_creditos.requestFocus();
+            return false;
+        }
+
+        int cred = Integer.parseInt(creditos);
+
+        if (cred < 1 || cred > 10) {
+            JOptionPane.showMessageDialog(this,
+                    "Los créditos deben estar entre 1 y 10.");
+            txt_creditos.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(horas)) {
+            JOptionPane.showMessageDialog(this, "Ingrese las horas.");
+            txt_horas.requestFocus();
+            return false;
+        }
+
+        int hor = Integer.parseInt(horas);
+
+        if (hor < 1 || hor > 200) {
+            JOptionPane.showMessageDialog(this,
+                    "Las horas deben estar entre 1 y 200.");
+            txt_horas.requestFocus();
+            return false;
+        }
+
+        if (cbo_carrera.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione una carrera.");
+            cbo_carrera.requestFocus();
+            return false;
+        }
+
+        return true;
+    }
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -263,92 +318,81 @@ public class AppCurso extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (txt_nombre.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese nombre del curso");
-                txt_nombre.requestFocus();
-                return;
-            }
-            if (txt_creditos.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese créditos");
-                txt_creditos.requestFocus();
-                return;
-            }
-            int cred;
-            try {
-                cred = Integer.parseInt(txt_creditos.getText().trim());
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(null, "Créditos debe ser numérico");
-                txt_creditos.requestFocus();
-                return;
-            }
-            if (cred < 1 || cred > 10) {
-                JOptionPane.showMessageDialog(null, "Créditos debe estar entre 1 y 10");
-                txt_creditos.requestFocus();
-                return;
-            }
-            if (txt_horas.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese horas");
-                txt_horas.requestFocus();
-                return;
-            }
-            int hor;
-            try {
-                hor = Integer.parseInt(txt_horas.getText().trim());
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(null, "Horas debe ser numérico");
-                txt_horas.requestFocus();
-                return;
-            }
-            if (hor < 1 || hor > 200) {
-                JOptionPane.showMessageDialog(null, "Horas debe estar entre 1 y 200");
-                txt_horas.requestFocus();
-                return;
-            }
-            if (cbo_carrera.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione carrera");
-                cbo_carrera.requestFocus();
-                return;
-            }
-
-            Curso curso = new Curso();
-            curso.setNombre(txt_nombre.getText().trim());
-            curso.setCreditos(cred);
-            curso.setHoras(hor);
-            String nomCar = cbo_carrera.getSelectedItem().toString();
-            for (String[] c : arr_carrera) {
-                if (c[1].equals(nomCar)) {
-                    curso.setIdCarrera(Integer.parseInt(c[0]));
-                    break;
-                }
-            }
-
-            if (e.getSource() == btn_agregar) {
-                crud_curso.Registrar(curso);
-                JOptionPane.showMessageDialog(null, "Curso Registrado");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un curso de la tabla");
-                    return;
-                }
-                curso.setIdCurso(Integer.parseInt(txt_id.getText()));
-                crud_curso.EditarPorId(curso);
-                JOptionPane.showMessageDialog(null, "Curso Actualizado");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un curso de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_curso.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Curso Eliminado");
-                }
-            }
-
-            MostrarDatos();
-            LimpiarDatos();
+            return;
         }
+
+        // ELIMINAR
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un curso de la tabla.");
+                return;
+            }
+
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
+
+            if (opc == JOptionPane.YES_OPTION) {
+                crud_curso.BorrarPorId(Integer.parseInt(txt_id.getText()));
+
+                JOptionPane.showMessageDialog(this, "Curso eliminado.");
+
+                MostrarDatos();
+                LimpiarDatos();
+            }
+
+            return;
+        }
+
+        // SOLO AGREGAR O EDITAR
+        if (e.getSource() != btn_agregar &&
+            e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Curso curso = new Curso();
+
+        curso.setNombre(txt_nombre.getText().trim());
+        curso.setCreditos(Integer.parseInt(txt_creditos.getText().trim()));
+        curso.setHoras(Integer.parseInt(txt_horas.getText().trim()));
+
+        int indiceCarrera = cbo_carrera.getSelectedIndex();
+        curso.setIdCarrera(
+                Integer.parseInt(arr_carrera.get(indiceCarrera)[0])
+        );
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_curso.Registrar(curso);
+
+            JOptionPane.showMessageDialog(this, "Curso registrado.");
+
+        } else if (e.getSource() == btn_editar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Seleccione un curso de la tabla.");
+                return;
+            }
+
+            curso.setIdCurso(Integer.parseInt(txt_id.getText()));
+
+            crud_curso.EditarPorId(curso);
+
+            JOptionPane.showMessageDialog(this, "Curso actualizado.");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {

@@ -1,14 +1,15 @@
 package view;
 
-import com.mysql.jdbc.ResultSetMetaData;
+import java.sql.ResultSetMetaData;
 import model.Docente;
 
+import controller.ValidacionController;
+import controller.ValidationDocumentFilter;
+import javax.swing.text.AbstractDocument;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.ResultSet;
@@ -39,9 +40,12 @@ public class AppDocente extends JInternalFrame implements ActionListener {
     private JButton btn_nuevo, btn_agregar, btn_editar, btn_borrar, btn_cerrar;
     private JTable tb_docente;
     private JScrollPane scr_docente;
+    
 
     private final CRUDDocente crud_docente = new CRUDDocente();
     private ArrayList<String[]> arr_usuario;
+    private final ValidacionController validacion =
+            new ValidacionController();
 
     public AppDocente() {
         super();
@@ -132,9 +136,15 @@ public class AppDocente extends JInternalFrame implements ActionListener {
         this.add(btn_cerrar);
         this.add(scr_docente);
 
-        ControladorTxt ctxt = new ControladorTxt();
-        txt_especialidad.addKeyListener(ctxt);
-        txt_grado.addKeyListener(ctxt);
+     // Especialidad: máximo 50 caracteres.
+        ((AbstractDocument) txt_especialidad.getDocument()).setDocumentFilter(
+            new ValidationDocumentFilter("ALFANUMERICO", 50)
+        );
+
+        // Grado académico: máximo 30 caracteres.
+        ((AbstractDocument) txt_grado.getDocument()).setDocumentFilter(
+            new ValidationDocumentFilter("ALFANUMERICO", 30)
+        );
 
         ControladorClick click = new ControladorClick();
         tb_docente.addMouseListener(click);
@@ -171,7 +181,7 @@ public class AppDocente extends JInternalFrame implements ActionListener {
         };
 
         try (ResultSet rs = crud_docente.getListar()) {
-            ResultSetMetaData meta = (ResultSetMetaData) rs.getMetaData();
+        	ResultSetMetaData meta = rs.getMetaData();
             int nc = meta.getColumnCount();
             for (int i = 1; i <= nc; i++)
                 modelo.addColumn(meta.getColumnLabel(i));
@@ -197,15 +207,7 @@ public class AppDocente extends JInternalFrame implements ActionListener {
         }
     }
 
-    private class ControladorTxt implements KeyListener {
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getSource() == txt_especialidad && txt_especialidad.getText().length() >= 50) e.consume();
-            if (e.getSource() == txt_grado && txt_grado.getText().length() >= 30) e.consume();
-        }
-        @Override public void keyPressed(KeyEvent e) {}
-        @Override public void keyReleased(KeyEvent e) {}
-    }
+    
 
     private class ControladorClick extends MouseAdapter {
         @Override
@@ -236,9 +238,53 @@ public class AppDocente extends JInternalFrame implements ActionListener {
             }
         }
     }
+    
+    private boolean ValidarFormulario() {
+
+        String especialidad = txt_especialidad.getText().trim();
+        String grado = txt_grado.getText().trim();
+
+        if (cbo_usuario.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(
+                    this, "Seleccione un usuario.");
+            cbo_usuario.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(especialidad)) {
+            JOptionPane.showMessageDialog(
+                    this, "Ingrese la especialidad.");
+            txt_especialidad.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarLongitud(especialidad, 1, 50)) {
+            JOptionPane.showMessageDialog(
+                    this, "La especialidad debe tener máximo 50 caracteres.");
+            txt_especialidad.requestFocus();
+            return false;
+        }
+
+        if (validacion.estaVacio(grado)) {
+            JOptionPane.showMessageDialog(
+                    this, "Ingrese el grado académico.");
+            txt_grado.requestFocus();
+            return false;
+        }
+
+        if (!validacion.validarLongitud(grado, 1, 30)) {
+            JOptionPane.showMessageDialog(
+                    this, "El grado académico debe tener máximo 30 caracteres.");
+            txt_grado.requestFocus();
+            return false;
+        }
+
+        return true;
+    }
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if (e.getSource() == btn_cerrar) {
             dispose();
             return;
@@ -246,62 +292,93 @@ public class AppDocente extends JInternalFrame implements ActionListener {
 
         if (e.getSource() == btn_nuevo) {
             LimpiarDatos();
-        } else {
-            if (cbo_usuario.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(null, "Seleccione usuario");
-                cbo_usuario.requestFocus();
-                return;
-            }
-            if (txt_especialidad.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese especialidad");
-                txt_especialidad.requestFocus();
-                return;
-            }
-            if (txt_grado.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Ingrese grado académico");
-                txt_grado.requestFocus();
+            return;
+        }
+
+        if (e.getSource() == btn_borrar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        this, "Seleccione un docente de la tabla.");
                 return;
             }
 
-            Docente docente = new Docente();
+            int opc = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Seguro de borrar el registro?",
+                    "SENATI",
+                    JOptionPane.YES_NO_OPTION
+            );
 
-            String nomUsu = cbo_usuario.getSelectedItem().toString();
-            for (String[] u : arr_usuario) {
-                if (u[1].equals(nomUsu)) {
-                    docente.setIdUsuario(Integer.parseInt(u[0]));
-                    break;
-                }
-            }
+            if (opc == JOptionPane.YES_OPTION) {
+                crud_docente.BorrarPorId(
+                        Integer.parseInt(txt_id.getText())
+                );
 
-            docente.setEspecialidad(txt_especialidad.getText().trim());
-            docente.setGradoAcademico(txt_grado.getText().trim());
-
-            if (e.getSource() == btn_agregar) {
-                crud_docente.Registrar(docente);
-                JOptionPane.showMessageDialog(null, "Docente Registrado");
-            } else if (e.getSource() == btn_editar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un docente de la tabla");
-                    return;
-                }
-                docente.setIdUsuario(Integer.parseInt(txt_id.getText()));
-                crud_docente.EditarPorId(docente);
-                JOptionPane.showMessageDialog(null, "Docente Actualizado");
-            } else if (e.getSource() == btn_borrar) {
-                if (txt_id.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Seleccione un docente de la tabla");
-                    return;
-                }
-                int opc = JOptionPane.showConfirmDialog(null, "¿Seguro de borrar el registro?", "SENATI", JOptionPane.YES_NO_OPTION);
-                if (opc == JOptionPane.YES_OPTION) {
-                    crud_docente.BorrarPorId(Integer.parseInt(txt_id.getText()));
-                    JOptionPane.showMessageDialog(null, "Docente Eliminado");
-                }
+                JOptionPane.showMessageDialog(
+                        this, "Docente eliminado.");
             }
 
             MostrarDatos();
             LimpiarDatos();
+            return;
         }
+
+        if (e.getSource() != btn_agregar
+                && e.getSource() != btn_editar) {
+            return;
+        }
+
+        if (!ValidarFormulario()) {
+            return;
+        }
+
+        Docente docente = new Docente();
+
+        String nomUsu = cbo_usuario.getSelectedItem().toString();
+
+        for (String[] u : arr_usuario) {
+            if (u[1].equals(nomUsu)) {
+                docente.setIdUsuario(Integer.parseInt(u[0]));
+                break;
+            }
+        }
+
+        docente.setEspecialidad(
+                txt_especialidad.getText().trim()
+        );
+
+        docente.setGradoAcademico(
+                txt_grado.getText().trim()
+        );
+
+        if (e.getSource() == btn_agregar) {
+
+            crud_docente.Registrar(docente);
+
+            JOptionPane.showMessageDialog(
+                    this, "Docente registrado.");
+
+        } else if (e.getSource() == btn_editar) {
+
+            if (txt_id.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        this, "Seleccione un docente de la tabla.");
+                return;
+            }
+
+            docente.setIdUsuario(
+                    Integer.parseInt(txt_id.getText())
+            );
+
+            crud_docente.EditarPorId(docente);
+
+            JOptionPane.showMessageDialog(
+                    this, "Docente actualizado.");
+        }
+
+        MostrarDatos();
+        LimpiarDatos();
     }
 
     private void LimpiarDatos() {
