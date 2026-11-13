@@ -569,7 +569,31 @@ INSERT INTO `tb_usuario` (`id_usuario`, `dni`, `nombres`, `apellidos`, `correo`)
 -- Índices para tablas volcadas
 --
 
+
+CREATE TABLE tb_credencial (
+    id_usuario INT(11) NOT NULL,
+    password_hash VARCHAR(60) NOT NULL,
+    rol VARCHAR(20) NOT NULL,
+    PRIMARY KEY (id_usuario),
+    CONSTRAINT fk_credencial_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES tb_usuario(id_usuario)
+        ON DELETE CASCADE
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_general_ci;
+
+  
+INSERT INTO tb_credencial (id_usuario, password_hash, rol)
+VALUES (
+    1,
+    '$2a$10$m444qLLqTrlwkK4Ac4qL5OdYOwcQ2CaIrW4JyvrWKGoO2HoGTRY0e',
+    'DOCENTE'
+);  
+  
+  
 --
+
 -- Indices de la tabla `tb_aula`
 --
 ALTER TABLE `tb_aula`
