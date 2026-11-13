@@ -56,7 +56,7 @@ public class AppHorario extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - HORARIO");
+        this.setTitle("Instituto San José - HORARIO");
         this.setSize(560, 560);
         this.setLayout(null);
         this.setResizable(false);

@@ -60,7 +60,7 @@ public class AppEstudiante extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - ESTUDIANTE");
+        this.setTitle("Instituto San José - ESTUDIANTE");
         this.setSize(520, 540);
         this.setLayout(null);
         this.setResizable(false);

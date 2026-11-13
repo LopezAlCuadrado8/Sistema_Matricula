@@ -58,7 +58,7 @@ public class AppPago extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - PAGO");
+        this.setTitle("Instituto San José - PAGO");
         this.setSize(540, 520);
         this.setLayout(null);
         this.setResizable(false);

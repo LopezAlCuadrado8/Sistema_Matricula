@@ -55,7 +55,7 @@ public class AppBloque extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - BLOQUE");
+        this.setTitle("Instituto San José - BLOQUE");
         this.setSize(460, 500);
         this.setLayout(null);
         this.setResizable(false);

@@ -52,7 +52,7 @@ public class AppCarrera extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - CARRERA");
+        this.setTitle("Instituto San José - CARRERA");
         this.setSize(430, 480);
         this.setLayout(null);
         this.setResizable(false);

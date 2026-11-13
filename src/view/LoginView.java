@@ -40,7 +40,7 @@ public class LoginView extends JFrame implements ActionListener {
 
     private void ConfigurarFormulario() {
 
-        this.setTitle("SENATI - ETI");
+        this.setTitle("Instituto San José - INICIAR SESIÓN");
         this.setSize(400, 300);
         this.setLayout(null);
         this.setResizable(false);

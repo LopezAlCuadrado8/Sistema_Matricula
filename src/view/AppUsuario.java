@@ -51,7 +51,7 @@ public class AppUsuario extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - USUARIO");
+        this.setTitle("Instituto San José - USUARIO");
         this.setSize(480, 520);
         this.setLayout(null);
         this.setResizable(false);

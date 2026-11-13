@@ -56,7 +56,7 @@ public class AppDocente extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - DOCENTE");
+        this.setTitle("Instituto San José - DOCENTE");
         this.setSize(500, 520);
         this.setLayout(null);
         this.setResizable(false);

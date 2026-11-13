@@ -56,7 +56,7 @@ public class AppCurso extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - CURSO");
+        this.setTitle("Instituto San José - CURSO");
         this.setSize(460, 540);
         this.setLayout(null);
         this.setResizable(false);

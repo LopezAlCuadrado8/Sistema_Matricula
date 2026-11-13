@@ -53,7 +53,7 @@ public class AppMatricula extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - MATRÍCULA");
+        this.setTitle("Instituto San José - MATRÍCULA");
         this.setSize(560, 540);
         this.setLayout(null);
         this.setResizable(false);

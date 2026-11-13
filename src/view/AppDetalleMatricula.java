@@ -57,7 +57,7 @@ public class AppDetalleMatricula extends JInternalFrame implements ActionListene
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - DETALLE MATRÍCULA");
+        this.setTitle("Instituto San José - DETALLE MATRÍCULA");
         this.setSize(560, 540);
         this.setLayout(null);
         this.setResizable(false);

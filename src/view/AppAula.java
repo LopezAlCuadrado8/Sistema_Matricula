@@ -51,7 +51,7 @@ public class AppAula extends JInternalFrame implements ActionListener {
     }
 
     private void ConfigurarFormulario() {
-        this.setTitle("SENATI - AULA");
+        this.setTitle("Instituto San José - AULA");
         this.setSize(430, 480);
         this.setLayout(null);
         this.setResizable(false);
