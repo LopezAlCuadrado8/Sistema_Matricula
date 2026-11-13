@@ -52,7 +52,7 @@ public class AppMenu extends JFrame implements ActionListener {
         ConfigurarControles();
 
         this.setTitle(
-            "SENATI - SISTEMA DE MATRÍCULAS | Usuario: "
+            "Instituto San José - SISTEMA DE MATRÍCULAS | Usuario: "
             + usuario.getNombres()
         );
     }
