@@ -20,6 +20,7 @@ public class AppMenu extends JFrame implements ActionListener {
     private JMenu mn_mantenimiento;
     private JMenu mn_academico;
     private JMenu mn_matriculas;
+    private JMenu mn_reportes;
 
     // Mantenimiento
     private JMenuItem mi_usuario;
@@ -37,6 +38,7 @@ public class AppMenu extends JFrame implements ActionListener {
     private JMenuItem mi_matricula;
     private JMenuItem mi_detalle_matricula;
     private JMenuItem mi_pago;
+    private JMenuItem mi_estadisticas;
 
     private JMenuItem mi_salir;
     private JSeparator msp_1, msp_2, msp_3;
@@ -52,7 +54,7 @@ public class AppMenu extends JFrame implements ActionListener {
         ConfigurarControles();
 
         this.setTitle(
-            "Instituto San José - SISTEMA DE MATRÍCULAS | Usuario: "
+            "SENATI - SISTEMA DE MATRÍCULAS | Usuario: "
             + usuario.getNombres()
         );
     }
@@ -132,9 +134,16 @@ public class AppMenu extends JFrame implements ActionListener {
         mn_matriculas.add(mi_detalle_matricula);
         mn_matriculas.add(mi_pago);
 
+        mn_reportes = new JMenu("Reportes");
+
+        mi_estadisticas = new JMenuItem("Panel de estadísticas");
+        mi_estadisticas.addActionListener(this);
+
+        mn_reportes.add(mi_estadisticas);
         mb_principal.add(mn_mantenimiento);
         mb_principal.add(mn_academico);
         mb_principal.add(mn_matriculas);
+        mb_principal.add(mn_reportes);
 
         setJMenuBar(mb_principal);
 
@@ -181,6 +190,10 @@ public class AppMenu extends JFrame implements ActionListener {
             AbrirFrm(AppDetalleMatricula.getInstancia());
         } else if (e.getSource() == mi_pago) {
             AbrirFrm(AppPago.getInstancia());
+
+        // ===== REPORTES =====
+        } else if (e.getSource() == mi_estadisticas) {
+            AbrirFrm(AppEstadisticas.getInstancia());
 
         // ===== SALIR =====
         } else if (e.getSource() == mi_salir) {
